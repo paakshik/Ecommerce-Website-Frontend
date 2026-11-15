@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import { api } from "../services/api";
 
 const CartContext = createContext(null);
@@ -7,19 +7,24 @@ export function CartProvider({ children }) {
   const [cart, setCart] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const revision = useRef(0);
+  const queue = useRef(Promise.resolve());
+  const pending = useRef(0);
 
   const fetchCart = useCallback(async () => {
+    const request = ++revision.current;
+    await queue.current;
     setLoading(true);
     setError(null);
     try {
       const data = await api.get("/cart");
-      setCart(data);
+      if (request === revision.current) setCart(data);
       return data;
     } catch (e) {
-      setError(e.message);
+      if (request === revision.current) setError(e);
       return null;
     } finally {
-      setLoading(false);
+      if (request === revision.current && !pending.current) setLoading(false);
     }
   }, []);
 
@@ -27,26 +32,38 @@ export function CartProvider({ children }) {
     fetchCart();
   }, [fetchCart]);
 
-  const addItem = useCallback(async (variantId, qty = 1) => {
+  const mutate = useCallback((operation) => {
+    ++revision.current; // Invalidate any older GET response.
+    pending.current += 1;
+    setLoading(true);
     setError(null);
-    const data = await api.post("/cart", { variant_id: variantId, quantity: qty });
-    setCart(data);
-    return data;
+    const result = queue.current.then(async () => {
+      try {
+        const data = await operation();
+        setCart(data);
+        return data;
+      } catch (e) {
+        setError(e);
+        throw e;
+      } finally {
+        pending.current -= 1;
+        if (!pending.current) setLoading(false);
+      }
+    });
+    queue.current = result.catch(() => {});
+    return result;
   }, []);
 
-  const updateItem = useCallback(async (variantId, qty) => {
-    setError(null);
-    const data = await api.put(`/cart/${variantId}`, { qty });
-    setCart(data);
-    return data;
-  }, []);
-
-  const removeItem = useCallback(async (variantId) => {
-    setError(null);
-    const data = await api.delete(`/cart/${variantId}`);
-    setCart(data);
-    return data;
-  }, []);
+  const addItem = useCallback((variantId, quantity = 1) => mutate(
+    () => api.post("/cart", { variant_id: variantId, quantity })
+  ), [mutate]);
+  const updateItem = useCallback((variantId, quantity) => mutate(
+    () => api.put(`/cart/${variantId}`, { variant_id: variantId, quantity })
+  ), [mutate]);
+  const removeItem = useCallback((variantId) => mutate(async () => {
+    await api.delete(`/cart/${variantId}`);
+    return api.get("/cart");
+  }), [mutate]);
 
   return (
     <CartContext.Provider value={{ cart, loading, error, fetchCart, addItem, updateItem, removeItem }}>

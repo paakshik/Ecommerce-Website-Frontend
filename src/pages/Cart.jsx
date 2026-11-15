@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import { useCart } from "../hooks/useCart";
 import CartItem from "../components/ui/CartItem";
 import Button from "../components/ui/Button";
@@ -7,20 +7,15 @@ import EmptyState from "../components/ui/EmptyState";
 import SectionHeader from "../components/ui/SectionHeader";
 import Skeleton from "../components/ui/Skeleton";
 import RateLimitMessage from "../components/RateLimitMessage";
-
-const formatPrice = (minor) => `$${(minor / 100).toFixed(2)}`;
+import { formatPrice } from "../utils/format";
 
 export default function Cart() {
   const { cart, loading, error, fetchCart, updateItem, removeItem } = useCart();
-  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    // Only fetch once when cart is null (never initialized).
-    // If addItem on another page already populated cart, don't overwrite it.
-    if (cart === null) {
-      fetchCart();
-    }
-  }, [cart, fetchCart]);
+    fetchCart();
+  }, [fetchCart]);
 
   const handleRetry = () => fetchCart();
 
@@ -53,7 +48,7 @@ export default function Cart() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="text-center py-10">
           {error.status === 429 && rateLimitShown(error) ? (
-            <RateLimitMessage retryAfterSeconds={parseInt(error.retryAfter, 10) || 60} onRetry={handleRetry} disabled={true} />
+            <RateLimitMessage retryAfterSeconds={parseInt(error.retryAfter, 10) || 60} onRetry={handleRetry} disabled={loading} />
           ) : null}
           <h2 className="text-lg font-semibold text-warm-900 mb-2">Unable to load cart</h2>
           <p className="text-warm-600">{error.message}</p>
@@ -68,6 +63,7 @@ export default function Cart() {
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <SectionHeader title="Shopping cart" subtitle={`(${items.length} item${items.length !== 1 ? "s" : ""})`} />
+      {location.state?.reorderMessage && <p role="status" className="mb-4 text-sm">{location.state.reorderMessage}</p>}
 
       {items.length === 0 ? (
         <EmptyState
@@ -83,9 +79,9 @@ export default function Cart() {
             ))}
           </div>
           <div className="bg-white border border-warm-200 rounded-radius-lg p-6 shadow-sm">
-            <div className="flex justify-between text-sm mb-2"><span className="text-warm-600">Subtotal</span><span className="font-medium text-warm-900">{formatPrice(subtotal)}</span></div>
-            <div className="flex justify-between text-sm mb-2"><span className="text-warm-600">Shipping</span><span className="font-medium text-warm-900">{formatPrice(shipping)}</span></div>
-            <div className="flex justify-between font-bold text-lg mb-6 border-t pt-2"><span className="text-warm-900">Total</span><span>{formatPrice(total)}</span></div>
+            <div className="flex justify-between text-sm mb-2"><span className="text-warm-600">Subtotal</span><span className="font-medium text-warm-900">{formatPrice(subtotal, cart?.currency)}</span></div>
+            <div className="flex justify-between text-sm mb-2"><span className="text-warm-600">Shipping</span><span className="font-medium text-warm-900">{formatPrice(shipping, cart?.currency)}</span></div>
+            <div className="flex justify-between font-bold text-lg mb-6 border-t pt-2"><span className="text-warm-900">Total</span><span>{formatPrice(total, cart?.currency)}</span></div>
             <Link to="/checkout">
               <Button variant="primary" size="lg" className="w-full">
                 Proceed to checkout

@@ -1,8 +1,6 @@
-import Button from "./Button";
+import { formatPrice } from "../../utils/format";
 
-const formatPrice = (minor) => `$${(minor / 100).toFixed(2)}`;
-
-export default function CartItem({ item, onUpdate, onRemove }) {
+export default function CartItem({ item, onUpdate, onRemove, disabled = false }) {
   const qty = item.quantity || 1;
   return (
     <div className="flex gap-4 items-center py-4 border-b border-warm-200 last:border-0">
@@ -11,11 +9,12 @@ export default function CartItem({ item, onUpdate, onRemove }) {
       </div>
       <div className="flex-1">
         <div className="font-semibold text-warm-900">{item.product_name}</div>
-        <div className="text-body-sm text-warm-600">{formatPrice(item.price_minor)} each</div>
+        <div className="text-body-sm text-warm-600">{formatPrice(item.price_minor, item.currency)} each</div>
       </div>
       <div className="flex items-center gap-2">
         <button
-          onClick={() => onUpdate(item.variant_id, Math.max(0, qty - 1))}
+          disabled={disabled}
+          onClick={() => { Promise.resolve(qty <= 1 ? onRemove(item.variant_id) : onUpdate(item.variant_id, qty - 1)).catch(() => {}); }}
           className="px-2 py-1 min-h-[44px] text-warm-600 hover:text-warm-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
           aria-label="Decrease quantity"
         >
@@ -23,16 +22,18 @@ export default function CartItem({ item, onUpdate, onRemove }) {
         </button>
         <span className="w-8 text-center">{qty}</span>
         <button
-          onClick={() => onUpdate(item.variant_id, qty + 1)}
+          onClick={() => { Promise.resolve(onUpdate(item.variant_id, qty + 1)).catch(() => {}); }}
+          disabled={disabled || qty >= 100}
           className="px-2 py-1 min-h-[44px] text-warm-600 hover:text-warm-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
           aria-label="Increase quantity"
         >
           +
         </button>
       </div>
-      <div className="font-bold text-warm-900">{formatPrice(item.line_total_minor)}</div>
+      <div className="font-bold text-warm-900">{formatPrice(item.line_total_minor, item.currency)}</div>
       <button
-        onClick={() => onRemove(item.variant_id)}
+        disabled={disabled}
+        onClick={() => { Promise.resolve(onRemove(item.variant_id)).catch(() => {}); }}
         className="ml-4 text-sm text-warm-600 hover:text-error underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
         aria-label="Remove item"
       >
