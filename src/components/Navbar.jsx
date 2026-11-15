@@ -51,16 +51,31 @@ export default function Navbar() {
                 {c.name}
               </NavLink>
             ))}
-            {authLinks.map((l) => (
-              <NavLink key={l.to} to={l.to}>{l.label}</NavLink>
-            ))}
-            {adminLink && <NavLink to={adminLink.to}>{adminLink.label}</NavLink>}
-            <button
-              onClick={logout}
-              className="text-sm text-warm-600 hover:text-warm-900 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 px-2 py-1 rounded-radius-sm"
-            >
-              Sign out
-            </button>
+            {user ? (
+              <>
+                {authLinks.map((l) => (
+                  <NavLink key={l.to} to={l.to} onClick={() => {}}>
+                    {l.label}
+                  </NavLink>
+                ))}
+                {adminLink && <NavLink to={adminLink.to}>{adminLink.label}</NavLink>}
+                <button
+                  onClick={logout}
+                  className="text-sm text-warm-600 hover:text-warm-900 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 px-2 py-1 rounded-radius-sm"
+                >
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="text-sm font-medium text-warm-600 hover:text-brand-600 px-3 py-2 rounded-radius-md border border-warm-200 hover:bg-warm-50 transition-colors">
+                  Login
+                </Link>
+                <Link to="/register" className="text-sm font-medium text-inverse bg-brand-600 hover:bg-brand-700 px-3 py-2 rounded-radius-md transition-colors">
+                  Register
+                </Link>
+              </>
+            )}
           </div>
 
           <div className="flex items-center gap-3">

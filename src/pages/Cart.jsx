@@ -15,8 +15,12 @@ export default function Cart() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchCart();
-  }, [fetchCart]);
+    // Only fetch once when cart is null (never initialized).
+    // If addItem on another page already populated cart, don't overwrite it.
+    if (cart === null) {
+      fetchCart();
+    }
+  }, [cart, fetchCart]);
 
   const handleRetry = () => fetchCart();
 

@@ -7,10 +7,10 @@ export default function CartItem({ item, onUpdate, onRemove }) {
   return (
     <div className="flex gap-4 items-center py-4 border-b border-warm-200 last:border-0">
       <div className="w-20 h-20 rounded-radius-md bg-warm-100 flex-shrink-0 flex items-center justify-center text-warm-400 text-xs">
-        {item.name?.slice(0, 2).toUpperCase()}
+        {item.product_name?.slice(0, 2).toUpperCase()}
       </div>
       <div className="flex-1">
-        <div className="font-semibold text-warm-900">{item.name}</div>
+        <div className="font-semibold text-warm-900">{item.product_name}</div>
         <div className="text-body-sm text-warm-600">{formatPrice(item.price_minor)} each</div>
       </div>
       <div className="flex items-center gap-2">
@@ -30,7 +30,7 @@ export default function CartItem({ item, onUpdate, onRemove }) {
           +
         </button>
       </div>
-      <div className="font-bold text-warm-900">{formatPrice(item.line_minor)}</div>
+      <div className="font-bold text-warm-900">{formatPrice(item.line_total_minor)}</div>
       <button
         onClick={() => onRemove(item.variant_id)}
         className="ml-4 text-sm text-warm-600 hover:text-error underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
