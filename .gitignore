@@ -1,0 +1,73 @@
+# Local environment files and credentials
+.env
+.env.*
+*.env
+*.local
+!.env.example
+!.env.*.example
+!*.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Python environments, caches, and generated packages
+.venv/
+venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.eggs/
+*.egg-info/
+
+# JavaScript dependencies and build output
+node_modules/
+dist/
+build/
+out/
+release/
+.vite/
+*.tsbuildinfo
+
+# Test reports, coverage, and browser authentication state
+.coverage
+.coverage.*
+coverage/
+htmlcov/
+playwright-report/
+test-results/
+blob-report/
+playwright/.auth/
+e2e/.auth/
+storageState.json
+
+# Runtime files and private uploaded content
+*.log
+logs/
+/backend/storage/
+/backend/cookies*.txt
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.backup
+
+# Local agent progress and personal tool settings
+.agent-progress/
+.claude/settings.local.json
+
+# Editor and operating-system files
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+Desktop.ini
