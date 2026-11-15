@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --reduced-motion: 0;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :root {
+      --reduced-motion: 1;
+    }
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply antialiased bg-warm-50 text-warm-900;
+  }
+  button {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-600 shadow-[0_0_0_3px_rgb(180_83_9_/0.2)];
+  }
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-warm-300 rounded-radius-sm;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-warm-400;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-600 shadow-[0_0_0_3px_rgb(180_83_9_/0.2)];
+  }
+  .reduce-motion-none {
+    transition: none !important;
+    animation: none !important;
+  }
+}
