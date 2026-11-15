@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import ProductCard from "../components/ui/ProductCard";
+
+let searchDebounceTimer = null;
 import SectionHeader from "../components/ui/SectionHeader";
 import EmptyState from "../components/ui/EmptyState";
 import Skeleton from "../components/ui/Skeleton";
@@ -156,7 +158,12 @@ export default function Products() {
             type="search"
             placeholder="Search products…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+              searchDebounceTimer = setTimeout(() => {
+                setSearch(e.target.value);
+              }, 300);
+            }}
             className="w-full rounded-radius-md border border-warm-200 bg-white px-3 py-2 text-sm text-warm-900 placeholder:text-warm-400 transition-all duration-fast ease-out focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:border-brand-600 min-h-[44px]"
           />
         </div>

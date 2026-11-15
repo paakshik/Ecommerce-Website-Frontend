@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
 import Products from "../pages/Products";
 import { ToastProvider } from "../context/ToastContext";
+import { CartProvider } from "../context/CartContext";
 import { api } from "../services/api";
 
 vi.mock("../services/api", () => ({
@@ -19,9 +20,11 @@ describe("Products page", () => {
   it("lists products and allows search", async () => {
     render(
       <ToastProvider>
-        <BrowserRouter>
-          <Products />
-        </BrowserRouter>
+        <CartProvider>
+          <BrowserRouter>
+            <Products />
+          </BrowserRouter>
+        </CartProvider>
       </ToastProvider>
     );
     await screen.findByText(/^Widget$/);

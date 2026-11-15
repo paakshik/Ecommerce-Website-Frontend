@@ -7,8 +7,7 @@ import EmptyState from "../components/ui/EmptyState";
 import SectionHeader from "../components/ui/SectionHeader";
 import Skeleton from "../components/ui/Skeleton";
 import RateLimitMessage from "../components/RateLimitMessage";
-
-const formatPrice = (minor) => `$${(minor / 100).toFixed(2)}`;
+import { formatPrice } from "../utils/format";
 
 export default function Cart() {
   const { cart, loading, error, fetchCart, updateItem, removeItem } = useCart();
@@ -83,9 +82,9 @@ export default function Cart() {
             ))}
           </div>
           <div className="bg-white border border-warm-200 rounded-radius-lg p-6 shadow-sm">
-            <div className="flex justify-between text-sm mb-2"><span className="text-warm-600">Subtotal</span><span className="font-medium text-warm-900">{formatPrice(subtotal)}</span></div>
-            <div className="flex justify-between text-sm mb-2"><span className="text-warm-600">Shipping</span><span className="font-medium text-warm-900">{formatPrice(shipping)}</span></div>
-            <div className="flex justify-between font-bold text-lg mb-6 border-t pt-2"><span className="text-warm-900">Total</span><span>{formatPrice(total)}</span></div>
+            <div className="flex justify-between text-sm mb-2"><span className="text-warm-600">Subtotal</span><span className="font-medium text-warm-900">{formatPrice(subtotal, cart?.currency)}</span></div>
+            <div className="flex justify-between text-sm mb-2"><span className="text-warm-600">Shipping</span><span className="font-medium text-warm-900">{formatPrice(shipping, cart?.currency)}</span></div>
+            <div className="flex justify-between font-bold text-lg mb-6 border-t pt-2"><span className="text-warm-900">Total</span><span>{formatPrice(total, cart?.currency)}</span></div>
             <Link to="/checkout">
               <Button variant="primary" size="lg" className="w-full">
                 Proceed to checkout

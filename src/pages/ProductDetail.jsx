@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { api } from "../services/api";
+import { formatPrice } from "../utils/format";
 import { useCart } from "../hooks/useCart";
 import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
@@ -9,8 +10,6 @@ import ProductCard from "../components/ui/ProductCard";
 import SectionHeader from "../components/ui/SectionHeader";
 import Skeleton from "../components/ui/Skeleton";
 import RateLimitMessage from "../components/RateLimitMessage";
-
-const formatPrice = (minor) => `$${(minor / 100).toFixed(2)}`;
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -140,7 +139,7 @@ export default function ProductDetail() {
           <p className="text-body text-warm-600">{product.description}</p>
 
           <div className="flex items-baseline gap-3">
-            <span className="text-xl font-bold text-warm-900">{formatPrice(variantPrice)}</span>
+            <span className="text-xl font-bold text-warm-900">{formatPrice(variantPrice, product?.currency)}</span>
             {selectedVariant && !inStock && (
               <Badge variant="danger" size="sm">Out of stock</Badge>
             )}
@@ -173,7 +172,7 @@ export default function ProductDetail() {
                         {v.options && <span className="text-body-sm text-warm-600">{Object.entries(v.options).map(([k, val]) => `${k}: ${val}`).join(" / ")}</span>}
                       </div>
                       <div className="flex flex-col items-end gap-0.5">
-                        <span className="font-medium">{formatPrice(v.price_minor)}</span>
+                        <span className="font-medium">{formatPrice(v.price_minor, product?.currency)}</span>
                         <span className="text-[10px] text-warm-400">stock {v.stock}</span>
                       </div>
                     </button>

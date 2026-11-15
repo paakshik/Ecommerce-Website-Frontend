@@ -1,20 +1,34 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { api } from "../services/api";
+import { formatPrice, formatDate } from "../utils/format";
 import Button from "../components/ui/Button";
+import Input from "../components/ui/Input";
 import Badge from "../components/ui/Badge";
 import SectionHeader from "../components/ui/SectionHeader";
 import EmptyState from "../components/ui/EmptyState";
 import Skeleton from "../components/ui/Skeleton";
+import RateLimitMessage from "../components/RateLimitMessage";
 
-const formatPrice = (minor, currency) => `$${((minor || 0) / 100).toFixed(2)}`;
+const PAGE_SIZE = 10;
 
-const statusStyles = {
+// Fulfillment status (order.status) badge styling.
+const fulfillmentStyles = {
   pending: "bg-[#FDF4EC] text-[#92400E]",
   paid: "bg-[#ECF7F1] text-[#15803D]",
   fulfilled: "bg-[#ECF7F1] text-[#15803D]",
+  payment_review: "bg-[#FDF4EC] text-[#92400E]",
   cancelled: "bg-[#F3F0EB] text-[#6E6557]",
+};
+
+// Payment status (order.payment_status) badge styling — kept separate from fulfillment.
+const paymentStyles = {
+  paid: "bg-[#ECF7F1] text-[#15803D]",
+  captured: "bg-[#ECF7F1] text-[#15803D]",
+  failed: "bg-[#FEF2F2] text-[#B91C1C]",
+  pending: "bg-[#FDF4EC] text-[#92400E]",
+  refunded: "bg-[#FDF4EC] text-[#92400E]",
 };
 
 export default function Account() {
@@ -22,16 +36,84 @@ export default function Account() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [rateLimit, setRateLimit] = useState(null);
+  const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  useEffect(() => {
-    if (!user) { setLoading(false); return; }
+  const fetchOrders = useCallback(async () => {
+    if (!user) return;
     let mounted = true;
-    api.get("/orders")
-      .then((data) => { if (mounted) setOrders(data.items || data || []); })
-      .catch((e) => { if (mounted) setError(e.message); })
-      .finally(() => { if (mounted) setLoading(false); });
-    return () => { mounted = false; };
+    setLoading(true);
+    setError(null);
+    try {
+      const query = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        offset: String((page - 1) * PAGE_SIZE),
+        ...(searchQuery ? { q: searchQuery } : {}),
+        ...(statusFilter && statusFilter !== "all" ? { status: statusFilter } : {}),
+        ...(dateFrom ? { date_from: dateFrom } : {}),
+        ...(dateTo ? { date_to: dateTo } : {}),
+      }).toString();
+      const data = await api.get(`/orders${query ? `?${query}` : ""}`);
+      if (mounted) setOrders(data.items || data || []);
+    } catch (e) {
+      if (!mounted) return;
+      setError(e.message);
+      if (e.status === 429) {
+        setRateLimit({ retryAfterSeconds: parseInt(e.retryAfter, 10) || 60 });
+      }
+    } finally {
+      if (mounted) setLoading(false);
+    }
   }, [user]);
+
+  // Initial load + refresh when returning to the page / regaining focus.
+  useEffect(() => {
+    fetchOrders();
+    const onFocus = () => fetchOrders();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") fetchOrders();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [fetchOrders, refreshKey]);
+
+  const handleRefresh = () => {
+    setPage(1);
+    setRefreshKey((k) => k + 1);
+  };
+
+  const filteredOrders = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    return (orders || []).filter((o) => {
+      const matchesQuery =
+        !q ||
+        String(o.id).toLowerCase().includes(q) ||
+        (o.email || "").toLowerCase().includes(q) ||
+        (o.items || []).some((i) => (i.product_name || "").toLowerCase().includes(q));
+      const matchesStatus =
+        statusFilter === "all" ||
+        o.status === statusFilter ||
+        o.payment_status === statusFilter;
+      return matchesQuery && matchesStatus;
+    });
+  }, [orders, searchQuery, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
+  const currentPageOrders = filteredOrders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  // Reset page when filters change.
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, statusFilter, dateFrom, dateTo]);
 
   if (loading) {
     return (
@@ -76,40 +158,201 @@ export default function Account() {
       </div>
 
       <SectionHeader title="Your orders" />
-      {error && <p className="mb-4 text-sm text-error" role="alert">{error}</p>}
-      {(orders || []).length === 0 ? (
+
+      {rateLimit && (
+        <RateLimitMessage
+          retryAfterSeconds={rateLimit.retryAfterSeconds}
+          onRetry={handleRefresh}
+          disabled={loading}
+        />
+      )}
+
+      {error && (
+        <div role="alert" className="mb-4 p-3 rounded-lg bg-[#FEF2F2] border border-[#FECACA] text-[#B91C1C] text-sm">
+          {error}
+          <button
+            onClick={handleRefresh}
+            aria-label="Retry orders"
+            className="mt-2 inline-flex items-center gap-1 text-xs underline font-medium min-h-[44px]"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Filters + search */}
+      <div className="bg-white border border-warm-200 rounded-radius-lg p-5 shadow-sm mb-6 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="relative w-full sm:w-64">
+            <Input
+              id="order-search"
+              label="Search orders"
+              placeholder="Order #, email, or item name"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="block w-full sm:w-48 rounded-md border border-warm-200 bg-warm-50 px-3 py-2 text-sm text-warm-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600"
+          >
+            <option value="all">All statuses</option>
+            <option value="pending">Pending</option>
+            <option value="paid">Paid</option>
+            <option value="fulfilled">Fulfilled</option>
+            <option value="payment_review">Payment review</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          <button
+            onClick={handleRefresh}
+            className="inline-flex items-center gap-2 rounded-md border border-warm-200 bg-white px-3 py-2 text-sm font-medium text-warm-900 shadow-sm hover:bg-warm-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-600 min-h-[44px]"
+            aria-label="Refresh orders"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M23 4v3h-3" />
+              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+            </svg>
+            Refresh
+          </button>
+        </div>
+
+        {/* Date range filter */}
+        <div className="flex flex-col sm:flex-row gap-3 items-end">
+          <label className="flex flex-col gap-1 text-sm text-warm-600">
+            From
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="rounded-md border border-warm-200 bg-warm-50 px-3 py-2 text-sm text-warm-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-warm-600">
+            To
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="rounded-md border border-warm-200 bg-warm-50 px-3 py-2 text-sm text-warm-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600"
+            />
+          </label>
+        </div>
+      </div>
+
+      {(filteredOrders || []).length === 0 ? (
         <EmptyState
           title="No orders yet"
           description="Your order history will appear here."
           action={{ label: "Browse products", href: "/products" }}
         />
       ) : (
-        <div className="bg-white border border-warm-200 rounded-radius-lg shadow-sm overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-warm-200 bg-warm-50">
-                <th className="text-left px-4 py-3 text-xs text-warm-600">Order</th>
-                <th className="text-left px-4 py-3 text-xs text-warm-600">Date</th>
-                <th className="text-right px-4 py-3 text-xs text-warm-600">Total</th>
-                <th className="text-left px-4 py-3 text-xs text-warm-600">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(orders || []).map((o) => (
-                <tr key={o.id} className="border-b border-warm-200">
-                  <td className="px-4 py-3 font-medium text-warm-900">#{o.id}</td>
-                  <td className="px-4 py-3 text-warm-600">{o.created_at ? new Date(o.created_at).toLocaleDateString() : ""}</td>
-                  <td className="px-4 py-3 text-right font-medium text-warm-900">{formatPrice(o.total_minor, o.currency)}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant={o.status === "paid" || o.status === "fulfilled" ? "success" : "default"}>
-                      {o.status}
-                    </Badge>
-                  </td>
+        <>
+          <div className="bg-white border border-warm-200 rounded-radius-lg shadow-sm overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-warm-200 bg-warm-50">
+                  <th className="text-left px-4 py-3 text-xs text-warm-600">Order</th>
+                  <th className="text-left px-4 py-3 text-xs text-warm-600">Date</th>
+                  <th className="text-left px-4 py-3 text-xs text-warm-600">Items</th>
+                  <th className="text-right px-4 py-3 text-xs text-warm-600">Total</th>
+                  <th className="text-left px-4 py-3 text-xs text-warm-600">Payment</th>
+                  <th className="text-left px-4 py-3 text-xs text-warm-600">Fulfillment</th>
+                  <th className="text-right px-4 py-3 text-xs text-warm-600">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {currentPageOrders.map((o) => (
+                  <tr key={o.id} className="border-b border-warm-200 group">
+                    <td className="px-4 py-3 font-medium text-warm-900">#{o.id}</td>
+                    <td className="px-4 py-3 text-warm-600">
+                      {o.created_at ? formatDate(o.created_at) : "Date unavailable"}
+                    </td>
+                    <td className="px-4 py-3 text-warm-600">
+                      {(o.items || []).map((i) => (
+                        <span key={i.id || i.variant_id} className="block">
+                          {i.quantity}× {i.product_name}
+                          {i.image_url && (
+                            <img
+                              src={i.image_url}
+                              alt=""
+                              className="mt-1 h-6 w-6 object-cover rounded-md border border-warm-200"
+                            />
+                          )}
+                        </span>
+                      ))}
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium text-warm-900">
+                      {formatPrice(o.total_minor, o.currency)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge
+                        variant={
+                          o.payment_status === "paid" || o.payment_status === "captured"
+                            ? "success"
+                            : o.payment_status === "failed"
+                              ? "danger"
+                              : o.payment_status === "pending" || o.payment_status === "refunded"
+                                ? "warning"
+                                : "default"
+                        }
+                      >
+                        {o.payment_status || "—"}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge
+                        variant={
+                          o.status === "paid" || o.status === "fulfilled"
+                            ? "success"
+                            : o.status === "cancelled"
+                              ? "danger"
+                              : o.status === "payment_review"
+                                ? "warning"
+                                : "default"
+                      }
+                      >
+                        {o.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Link
+                        to={`/order/${o.id}`}
+                        className="inline-flex items-center gap-1 rounded-md border border-brand-600 bg-brand-600 px-3 py-1.5 text-xs font-medium text-inverse shadow-sm hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-600 min-h-[36px]"
+                      >
+                        View order
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="mt-4 flex items-center justify-between">
+              <p className="text-xs text-warm-600">
+                Page {page} of {totalPages}
+              </p>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="rounded-md border border-warm-200 bg-white px-3 py-1.5 text-sm text-warm-900 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-warm-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 min-h-[36px]"
+                >
+                  Prev
+                </button>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="rounded-md border border-warm-200 bg-white px-3 py-1.5 text-sm text-warm-900 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-warm-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 min-h-[36px]"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       <div className="mt-8 bg-white border border-warm-200 rounded-radius-lg p-6 shadow-sm">

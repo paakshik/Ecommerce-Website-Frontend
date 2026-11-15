@@ -24,6 +24,7 @@ export default function Navbar() {
 
   const authLinks = user
     ? [
+        { to: "/account", label: "Your Orders" },
         { to: "/account", label: "Account" },
         { to: "/wishlist", label: "Wishlist" },
       ]
@@ -54,7 +55,7 @@ export default function Navbar() {
             {user ? (
               <>
                 {authLinks.map((l) => (
-                  <NavLink key={l.to} to={l.to} onClick={() => {}}>
+                  <NavLink key={`${l.to}::${l.label}`} to={l.to} onClick={() => {}}>
                     {l.label}
                   </NavLink>
                 ))}
@@ -115,7 +116,7 @@ export default function Navbar() {
                 </NavLink>
               ))}
               {authLinks.map((l) => (
-                <NavLink key={l.to} to={l.to} onClick={() => setMobileOpen(false)}>
+                <NavLink key={`${l.to}::${l.label}`} to={l.to} onClick={() => setMobileOpen(false)}>
                   {l.label}
                 </NavLink>
               ))}
