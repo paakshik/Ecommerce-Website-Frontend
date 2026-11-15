@@ -55,7 +55,6 @@ export default function Navbar() {
               <NavLink key={l.to} to={l.to}>{l.label}</NavLink>
             ))}
             {adminLink && <NavLink to={adminLink.to}>{adminLink.label}</NavLink>}
-            <CartLink count={itemCount} />
             <button
               onClick={logout}
               className="text-sm text-warm-600 hover:text-warm-900 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 px-2 py-1 rounded-radius-sm"
