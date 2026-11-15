@@ -63,7 +63,7 @@ export default function Products() {
       })
       .catch((e) => {
         if (!mounted) return;
-        setError(e.message);
+        setError(typeof e.message === "string" ? e.message : JSON.stringify(e.message || e));
         if (e.status === 429) setRateLimit({ retryAfterSeconds: parseInt(e.retryAfter, 10) || 60 });
       })
       .finally(() => {
@@ -92,7 +92,7 @@ export default function Products() {
       })
       .catch((e) => {
         if (!mounted) return;
-        setError(e.message);
+        setError(typeof e.message === "string" ? e.message : JSON.stringify(e.message || e));
         if (e.status === 429) setRateLimit({ retryAfterSeconds: parseInt(e.retryAfter, 10) || 60 });
       })
       .finally(() => {

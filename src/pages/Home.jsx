@@ -29,7 +29,7 @@ export default function Home() {
       })
       .catch((e) => {
         if (!mounted) return;
-        setError(e.message);
+        setError(typeof e.message === "string" ? e.message : JSON.stringify(e.message || e));
       })
       .finally(() => {
         if (mounted) setLoading(false);
@@ -57,7 +57,7 @@ export default function Home() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <EmptyState
           title="Unable to load catalog"
-          description={error || "Please try again later."}
+          description={typeof error === "string" ? error : String(error) || "Please try again later."}
           action={{ label: "Try again", onClick: () => window.location.reload() }}
         />
       </section>
@@ -83,7 +83,7 @@ export default function Home() {
           categories.map((c) => (
             <Link
               key={c.id || c.slug}
-              to={`/categories/${c.slug || c.id}`}
+              to={`/products?category=${c.slug}`}
               className="bg-white border border-warm-200 rounded-radius-lg p-4 flex flex-col items-center justify-center min-h-[200px] hover:border-warm-300 transition-all duration-medium ease-out text-decoration-none"
             >
               <div className="w-16 h-16 rounded-radius-md bg-warm-100 flex items-center justify-center mb-3 text-warm-400 text-sm font-medium">
