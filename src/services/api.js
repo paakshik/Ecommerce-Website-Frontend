@@ -39,8 +39,16 @@ async function request(path, init = {}) {
 
   let data;
   const ct = res.headers.get("content-type") || "";
-  if (ct.includes("application/json")) data = await res.json();
-  else data = await res.text();
+  if (ct.includes("application/json")) {
+    try {
+      data = await res.json();
+    } catch {
+      // Empty or non-JSON body (e.g. HTTP 204 No Content). Treat as empty data.
+      data = null;
+    }
+  } else {
+    data = await res.text();
+  }
 
   if (!res.ok) {
     const err = data && data.error ? data.error : { code: res.status, message: String(data) };
